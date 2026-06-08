@@ -1,89 +1,90 @@
-# Steel Client Purchase Prediction using Machine Learning
+# Steel Client Purchase Prediction
 
 ## Project Overview
 
-This project analyzes client behavior for an American steel manufacturer, Alpha Steel, using the STEEL CLIENTS dataset. The dataset captures client interactions with a newly implemented web-based order-to-purchase system.
-
-The goal of this project is to understand customer behavior, identify key factors influencing purchasing activity, and build predictive models to support digital sales strategy and client conversion.
+This project analyzes client behavior for a steel manufacturing company using the **STEEL CLIENTS** dataset. The goal is to predict `NUMBER_OF_PURCHASES` based on client web activity, negotiations, tonnage behavior, and platform usage.
 
 ## Business Problem
 
-Alpha Steel introduced a web-based platform to automate the order-to-purchase process. The business objective is to evaluate how effectively the platform converts clients into buyers and reduces dependency on human client service agents.
+Alpha Steel implemented a web-based order-to-purchase system. This project evaluates how client behavior on the platform can be used to predict purchase activity and support digital sales decision-making.
 
-## Dataset
+## Target Variable
 
-The dataset includes client-level behavioral and transactional features such as:
+`NUMBER_OF_PURCHASES`
 
-* Sessions per year
-* Average actions
-* Number of purchases
-* Pages visited
-* Tons on cart
-* Tons confirmed
-* Delivery or pickup preference
-* Web app sessions
-* Executive-assisted sessions
-* Excel tool usage
-* Client catalogue usage
-* Number of negotiations
-* Client classification
-* Construction and manufacturing indices
+## Features Used
 
-## Methods Used
+- Number of negotiations
+- Sessions per year
+- Tons confirmed
+- Sessions on web app
+- Distribution center changes
+- Delivery or pickup preference
+- Executive-assisted sessions
+- Average actions
+- Pages visited
+- Excel tool usage
+- Client catalogue usage
+- Client classification
 
-* Data cleaning and validation
-* Exploratory Data Analysis
-* Outlier and anomaly handling
-* Feature engineering
-* Regression modeling
-* Model comparison
-* Cluster analysis using K-Means
-* Performance evaluation using RMSE, R², and Adjusted R²
+## Models Compared
 
-## Machine Learning Models
+- OLS Regression
+- Ridge Regression
+- Lasso Regression
+- Polynomial Regression
+- Neural Network
+- Decision Tree
+- Random Forest
+- Gradient Boosting
 
-The following models were implemented and compared:
+## Outputs Generated
 
-* OLS Regression
-* Ridge Regression
-* Lasso Regression
-* Polynomial Regression
-* Generalized Additive Model
-* Neural Network
-* Decision Tree
-* Random Forest
-* Gradient Boosting
+After running the pipeline, the following are created automatically:
 
-## Key Result
+```text
+images/
+  correlation_matrix.png
+  target_correlation.png
+  model_comparison_adjusted_r2.png
+  train_test_r2.png
+  train_test_adjusted_r2.png
+  train_test_mse.png
+  feature_importance.png
+  kmeans_elbow.png
+  kmeans_silhouette.png
 
-Gradient Boosting achieved the strongest performance based on Test Adjusted R², followed by Random Forest. Non-linear models performed better than simple linear models, showing that client purchasing behavior contains non-linear patterns.
+reports/
+  model_results.csv
+
+models/
+  best_model.pkl
+  model_metadata.json
+```
+
+## Run Locally
+
+```bash
+pip install -r requirements.txt
+python steel_clients_pipeline.py --data data/STEELMANUF_CLIENTS_SV.xlsx --sheet DB
+python app.py
+```
+
+## Hugging Face Deployment
+
+1. Create a new Hugging Face Space.
+2. Select **Gradio** as the SDK.
+3. Upload these files:
+
+```text
+app.py
+steel_clients_pipeline.py
+requirements.txt
+data/STEELMANUF_CLIENTS_SV.xlsx
+```
+
+4. Hugging Face will install dependencies and run `app.py`.
 
 ## Tech Stack
 
-Python
-Pandas
-NumPy
-Scikit-learn
-PyGAM
-TensorFlow / Keras
-Matplotlib
-Seaborn
-Jupyter Notebook
-
-## Business Value
-
-This project helps the company:
-
-* Understand client behavior on the web-based platform
-* Identify high-value purchasing patterns
-* Improve digital sales conversion
-* Reduce dependency on manual client support
-* Support data-driven decision-making in steel sales operations
-
-## Future Improvements
-
-* Deploy the best model using Hugging Face Spaces
-* Add SHAP explainability
-* Build an interactive prediction dashboard
-* Add hyperparameter tuning
-* Improve cluster interpretation for client segmentation
+Python, Pandas, NumPy, Scikit-Learn, Matplotlib, Gradio, Joblib

@@ -1,11 +1,7 @@
-pandas
-numpy
-scikit-learn
-matplotlib
-seaborn
-pygam
-tensorflow
-openpyxl
-tabulate
 gradio
 joblib
+matplotlib
+numpy
+openpyxl
+pandas
+scikit-learn
