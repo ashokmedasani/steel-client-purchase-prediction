@@ -1,9 +1,9 @@
 import warnings
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import plotly.express as px
 import streamlit as st
 
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
@@ -49,15 +49,13 @@ def adjusted_r2_score(r2, n, p):
 
 
 @st.cache_data
-def load_dataset(uploaded_file, local_path, sheet_name):
-    if uploaded_file is not None:
-        return pd.read_excel(uploaded_file, sheet_name=sheet_name)
-
+def load_dataset(local_path, sheet_name):
     path = Path(local_path)
-    if path.exists():
-        return pd.read_excel(path, sheet_name=sheet_name)
 
-    return None
+    if not path.exists():
+        return None
+
+    return pd.read_excel(path, sheet_name=sheet_name)
 
 
 def clean_dataset(df):
@@ -201,104 +199,105 @@ def train_models(X_encoded, y):
     return results_df
 
 
-def plot_correlation_matrix(model_df):
+def correlation_heatmap(model_df):
     numeric_df = model_df.select_dtypes(include=[np.number])
     corr = numeric_df.corr()
 
-    fig, ax = plt.subplots(figsize=(14, 10))
-    im = ax.imshow(corr, aspect="auto")
-    fig.colorbar(im, ax=ax, label="Correlation")
+    fig = px.imshow(
+        corr,
+        text_auto=".2f",
+        aspect="auto",
+        title="Correlation Matrix - Steel Clients Dataset",
+        color_continuous_scale="RdBu_r",
+    )
 
-    ax.set_xticks(range(len(corr.columns)))
-    ax.set_yticks(range(len(corr.columns)))
-    ax.set_xticklabels(corr.columns, rotation=90, fontsize=8)
-    ax.set_yticklabels(corr.columns, fontsize=8)
-    ax.set_title("Correlation Matrix - Steel Clients Dataset")
+    fig.update_layout(
+        height=750,
+        margin=dict(l=20, r=20, t=70, b=20),
+    )
 
-    fig.tight_layout()
     return fig
 
 
-def plot_target_correlation(model_df):
+def target_correlation_chart(model_df):
     numeric_df = model_df.select_dtypes(include=[np.number])
 
     corr = (
         numeric_df.corr()[TARGET]
         .drop(TARGET)
-        .sort_values()
+        .sort_values(ascending=True)
+        .reset_index()
     )
 
-    fig, ax = plt.subplots(figsize=(10, 7))
-    ax.barh(corr.index, corr.values)
-    ax.set_title("Feature Correlation with Number of Purchases")
-    ax.set_xlabel("Correlation")
-    fig.tight_layout()
+    corr.columns = ["Feature", "Correlation"]
+
+    fig = px.bar(
+        corr,
+        x="Correlation",
+        y="Feature",
+        orientation="h",
+        text="Correlation",
+        title="Feature Correlation with Number of Purchases",
+    )
+
+    fig.update_traces(texttemplate="%{text:.3f}", textposition="outside")
+    fig.update_layout(height=600, margin=dict(l=20, r=20, t=70, b=20))
 
     return fig
 
 
-def plot_model_bar(results_df, metric_col, title, xlabel):
-    ordered = results_df.sort_values(metric_col)
+def model_bar_chart(results_df, metric_col, title):
+    df = results_df.sort_values(metric_col, ascending=True)
 
-    fig, ax = plt.subplots(figsize=(10, 6))
-    ax.barh(ordered["Model"], ordered[metric_col])
-    ax.set_title(title)
-    ax.set_xlabel(xlabel)
+    fig = px.bar(
+        df,
+        x=metric_col,
+        y="Model",
+        orientation="h",
+        text=metric_col,
+        title=title,
+    )
 
-    for index, value in enumerate(ordered[metric_col]):
-        ax.text(value, index, f" {value:.3f}", va="center", fontsize=8)
+    fig.update_traces(texttemplate="%{text:.3f}", textposition="outside")
+    fig.update_layout(height=550, margin=dict(l=20, r=20, t=70, b=20))
 
-    fig.tight_layout()
     return fig
 
 
-def plot_train_test_line(results_df, train_col, test_col, title, ylabel):
-    fig, ax = plt.subplots(figsize=(14, 6))
+def train_test_line_chart(results_df, train_col, test_col, title, y_label):
+    plot_df = results_df[["Model", train_col, test_col]].copy()
 
-    ax.plot(
-        results_df["Model"],
-        results_df[train_col],
-        marker="o",
-        linewidth=2,
-        label=f"Train {ylabel}",
+    plot_df = plot_df.melt(
+        id_vars="Model",
+        value_vars=[train_col, test_col],
+        var_name="Dataset",
+        value_name=y_label,
     )
 
-    ax.plot(
-        results_df["Model"],
-        results_df[test_col],
-        marker="s",
-        linewidth=2,
-        label=f"Test {ylabel}",
+    plot_df["Dataset"] = plot_df["Dataset"].replace(
+        {
+            train_col: "Train",
+            test_col: "Test",
+        }
     )
 
-    for x, y in zip(results_df["Model"], results_df[train_col]):
-        ax.annotate(
-            f"{y:.3f}",
-            (x, y),
-            textcoords="offset points",
-            xytext=(0, 8),
-            ha="center",
-            fontsize=8,
-        )
+    fig = px.line(
+        plot_df,
+        x="Model",
+        y=y_label,
+        color="Dataset",
+        markers=True,
+        text=y_label,
+        title=title,
+    )
 
-    for x, y in zip(results_df["Model"], results_df[test_col]):
-        ax.annotate(
-            f"{y:.3f}",
-            (x, y),
-            textcoords="offset points",
-            xytext=(0, -14),
-            ha="center",
-            fontsize=8,
-        )
+    fig.update_traces(texttemplate="%{text:.3f}", textposition="top center")
+    fig.update_layout(
+        height=600,
+        xaxis_tickangle=-35,
+        margin=dict(l=20, r=20, t=70, b=20),
+    )
 
-    ax.set_title(title)
-    ax.set_xlabel("Model")
-    ax.set_ylabel(ylabel)
-    ax.tick_params(axis="x", rotation=45)
-    ax.grid(True)
-    ax.legend()
-
-    fig.tight_layout()
     return fig
 
 
@@ -306,39 +305,33 @@ st.title("Steel Client Purchase Analytics using Machine Learning")
 
 st.markdown(
     """
-This app dynamically performs the full analytical workflow for the **STEEL CLIENTS** dataset.  
-It reads the dataset, cleans the modeling fields, performs exploratory analysis, trains regression-based machine learning models, and compares model performance live.
+This Streamlit app dynamically performs the full analytical workflow for the **STEEL CLIENTS** dataset.
+
+It reads the dataset directly from the project folder, cleans the modeling fields, performs exploratory analysis,
+trains regression-based machine learning models, and compares model performance live.
 """
 )
 
 with st.sidebar:
     st.header("Dataset Settings")
 
-    uploaded_file = st.file_uploader(
-        "Upload Steel Clients Excel file",
-        type=["xlsx"]
-    )
-
     local_path = st.text_input(
-        "Or use local dataset path",
+        "Dataset path",
         value="data/STEELMANUF_CLIENTS_SV.xlsx"
     )
 
     sheet_name = st.text_input(
-        "Excel Sheet Name",
+        "Excel sheet name",
         value="DB"
     )
 
-    run_analysis = st.button("Run Analysis")
-
-if not run_analysis:
-    st.info("Upload your dataset or keep the local path, then click **Run Analysis**.")
-    st.stop()
-
-df = load_dataset(uploaded_file, local_path, sheet_name)
+df = load_dataset(local_path, sheet_name)
 
 if df is None:
-    st.error("Dataset not found. Upload the Excel file or check the local path.")
+    st.error(
+        "Dataset not found. Please keep your Excel file at: "
+        "`data/STEELMANUF_CLIENTS_SV.xlsx`"
+    )
     st.stop()
 
 model_df = clean_dataset(df)
@@ -353,9 +346,11 @@ st.markdown(
     """
 ### Problem Statement
 
-Alpha Steel introduced a web-based order-to-purchase platform to improve customer experience, automate purchase activity, and reduce dependency on manual client service agents.
+Alpha Steel introduced a web-based order-to-purchase platform to improve customer experience,
+automate purchase activity, and reduce dependency on manual client service agents.
 
-The purpose of this analysis is to understand client purchasing behavior and identify which customer activities are most connected with `NUMBER_OF_PURCHASES`.
+The purpose of this analysis is to understand client purchasing behavior and identify which customer activities
+are most connected with `NUMBER_OF_PURCHASES`.
 
 ### Target Variable
 
@@ -370,6 +365,7 @@ The purpose of this analysis is to understand client purchasing behavior and ide
 )
 
 c1, c2, c3, c4 = st.columns(4)
+
 c1.metric("Rows", f"{df.shape[0]:,}")
 c2.metric("Columns", f"{df.shape[1]:,}")
 c3.metric("Target", TARGET)
@@ -384,15 +380,22 @@ with st.expander("View Selected Modeling Columns"):
 
 st.header("2. Exploratory Analysis & Discoveries")
 
-col1, col2 = st.columns(2)
+st.info(
+    "For full exploratory data analysis, please review the notebooks and reports files in the GitHub repository."
+)
 
-with col1:
-    st.subheader("Correlation Matrix")
-    st.pyplot(plot_correlation_matrix(model_df))
+tab1, tab2 = st.tabs(
+    [
+        "Correlation Matrix",
+        "Feature Correlation with Purchases",
+    ]
+)
 
-with col2:
-    st.subheader("Feature Correlation with Purchases")
-    st.pyplot(plot_target_correlation(model_df))
+with tab1:
+    st.plotly_chart(correlation_heatmap(model_df), use_container_width=True)
+
+with tab2:
+    st.plotly_chart(target_correlation_chart(model_df), use_container_width=True)
 
 st.markdown(
     """
@@ -423,67 +426,87 @@ The following regression-based machine learning models are trained and compared 
 )
 
 m1, m2, m3, m4 = st.columns(4)
+
 m1.metric("Best Model", best_model["Model"])
 m2.metric("Test R²", f"{best_model['Test_R2']:.3f}")
 m3.metric("Test Adjusted R²", f"{best_model['Test_Adjusted_R2']:.3f}")
 m4.metric("Test RMSE", f"{best_model['Test_RMSE']:.3f}")
 
 st.subheader("Model Results Table")
-st.dataframe(results_df, use_container_width=True)
+
+display_df = results_df.copy()
+numeric_cols = display_df.select_dtypes(include=[np.number]).columns
+display_df[numeric_cols] = display_df[numeric_cols].round(4)
+
+st.dataframe(display_df, use_container_width=True)
 
 st.subheader("Model Performance Proofs")
 
-col3, col4 = st.columns(2)
+tab3, tab4, tab5, tab6, tab7 = st.tabs(
+    [
+        "Adjusted R² Ranking",
+        "R² Ranking",
+        "Train vs Test R²",
+        "Train vs Test Adjusted R²",
+        "Train vs Test MSE",
+    ]
+)
 
-with col3:
-    st.pyplot(
-        plot_model_bar(
+with tab3:
+    st.plotly_chart(
+        model_bar_chart(
             results_df,
             "Test_Adjusted_R2",
-            "Model Comparison by Test Adjusted R²",
-            "Test Adjusted R²"
-        )
+            "Model Comparison by Test Adjusted R²"
+        ),
+        use_container_width=True,
     )
 
-with col4:
-    st.pyplot(
-        plot_model_bar(
+with tab4:
+    st.plotly_chart(
+        model_bar_chart(
             results_df,
             "Test_R2",
-            "Model Comparison by Test R²",
-            "Test R²"
-        )
+            "Model Comparison by Test R²"
+        ),
+        use_container_width=True,
     )
 
-st.pyplot(
-    plot_train_test_line(
-        results_df,
-        "Train_R2",
-        "Test_R2",
-        "Train and Test R² for Different Models",
-        "R²"
+with tab5:
+    st.plotly_chart(
+        train_test_line_chart(
+            results_df,
+            "Train_R2",
+            "Test_R2",
+            "Train and Test R² for Different Models",
+            "R²",
+        ),
+        use_container_width=True,
     )
-)
 
-st.pyplot(
-    plot_train_test_line(
-        results_df,
-        "Train_Adjusted_R2",
-        "Test_Adjusted_R2",
-        "Train and Test Adjusted R² for Different Models",
-        "Adjusted R²"
+with tab6:
+    st.plotly_chart(
+        train_test_line_chart(
+            results_df,
+            "Train_Adjusted_R2",
+            "Test_Adjusted_R2",
+            "Train and Test Adjusted R² for Different Models",
+            "Adjusted R²",
+        ),
+        use_container_width=True,
     )
-)
 
-st.pyplot(
-    plot_train_test_line(
-        results_df,
-        "Train_MSE",
-        "Test_MSE",
-        "Train and Test MSE for Different Models",
-        "MSE"
+with tab7:
+    st.plotly_chart(
+        train_test_line_chart(
+            results_df,
+            "Train_MSE",
+            "Test_MSE",
+            "Train and Test MSE for Different Models",
+            "MSE",
+        ),
+        use_container_width=True,
     )
-)
 
 st.header("4. Conclusions & Business Recommendations")
 
@@ -493,7 +516,8 @@ st.markdown(
 
 The strongest performing model in this run is **{best_model["Model"]}**, based on test-side adjusted R² and R².
 
-This confirms that customer purchasing behavior is better explained by models that can capture multiple behavioral signals and non-linear relationships.
+This confirms that customer purchasing behavior is better explained by models that can capture multiple behavioral signals
+and non-linear relationships.
 
 ### Business Recommendations
 
@@ -505,7 +529,7 @@ This confirms that customer purchasing behavior is better explained by models th
 
 ### Tools Used
 
-Python | Pandas | NumPy | Scikit-learn | Matplotlib | Streamlit | Regression Analysis | Machine Learning
+Python | Pandas | NumPy | Scikit-learn | Plotly | Streamlit | Regression Analysis | Machine Learning
 """
 )
 
