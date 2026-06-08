@@ -1,7 +1,6 @@
-gradio
-joblib
-matplotlib
-numpy
-openpyxl
+streamlit
 pandas
+numpy
 scikit-learn
+matplotlib
+openpyxl
